@@ -36,20 +36,22 @@ Depois de instalado, pressione `Super + C` para abrir o histórico de cópias.
 ### Desinstalar
 
 ```bash
-systemctl --user disable --now clipmaster.service
+pkill -x clipmaster
 rm -f ~/.local/bin/clipmaster
-rm -f ~/.config/systemd/user/clipmaster.service
+rm -f ~/.config/autostart/clipmaster.desktop
 gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "[]"
 ```
 
 ---
 
-## 💻 Recursos e Telas
+## 💻 Recursos
 
-- **Simulador Interativo Web:** Teste no navegador todas as funcionalidades antes de instalar no sistema.
-- **Busca e Filtros:** Pesquise por termos, selecione apenas comandos do terminal, links ou códigos.
-- **Fixar no Topo:** Mantenha comandos do terminal (`sudo apt update`, `docker run...`) sempre salvos.
-- **Backup JSON:** Exporte e importe seu histórico quando trocar de máquina.
+- **Texto, Links e Imagens:** Captura e exibe os três tipos de conteúdo com ícones distintos (📄 🔗 🖼️).
+- **Filtros por tipo:** Barra com botões para exibir Todos, apenas Texto, apenas Links ou apenas Imagens.
+- **Busca:** Pesquise por qualquer termo dentro do histórico em tempo real.
+- **Proteção de senhas:** Clique no cadeado 🔓 de qualquer item para mascarar o conteúdo com `••••••••` — o item continua sendo copiado corretamente ao selecionar.
+- **Ultraleve:** ~15 MB de RAM e 0% de CPU em repouso.
+- **100% local:** Nenhum dado é enviado para a internet.
 
 ---
 
