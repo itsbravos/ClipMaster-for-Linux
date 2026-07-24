@@ -128,29 +128,28 @@ class ClipboardWindow(Gtk.Window):
             return True
         return False
 
-# --- Monitoramento de clipboard no main loop do GTK (thread-safe) ---
+# --- Monitoramento de clipboard no main loop do GTK (thread-safe, assíncrono) ---
 
 def setup_clipboard_monitor(win):
-    """Usa GLib.timeout_add para rodar no main loop — Gtk.Clipboard exige a thread principal."""
     clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     last_text = {"value": ""}
 
-    def check_clipboard():
-        try:
-            curr = clipboard.wait_for_text()
-        except Exception:
-            return True  # continua tentando
-
-        if curr and curr.strip() and curr != last_text["value"]:
-            last_text["value"] = curr
-            if curr in HISTORY:
-                HISTORY.remove(curr)
-            HISTORY.insert(0, curr)
+    def on_text_received(cb, text, user_data):
+        if not text or not text.strip():
+            return
+        if text != last_text["value"]:
+            last_text["value"] = text
+            if text in HISTORY:
+                HISTORY.remove(text)
+            HISTORY.insert(0, text)
             if len(HISTORY) > MAX_HISTORY:
                 HISTORY.pop()
             if win.is_visible():
                 win.refresh_list()
 
+    def check_clipboard():
+        # request_text é assíncrono — não bloqueia o main loop
+        clipboard.request_text(on_text_received, None)
         return True  # mantém o timer ativo
 
     GLib.timeout_add(600, check_clipboard)
@@ -213,6 +212,7 @@ def main():
 
     Gtk.init(sys.argv)
     win = ClipboardWindow()
+    win.realize()  # inicializa a janela no display sem exibi-la
 
     # SIGUSR1 via GLib — seguro dentro do GTK main loop
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1,
