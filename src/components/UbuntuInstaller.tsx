@@ -13,7 +13,7 @@ import {
   FileCode,
   Sparkles,
 } from 'lucide-react';
-import { pythonGtkDaemonCode, ubuntuInstallShellScript, copyqAlternativeScript } from '../data/ubuntuInstallerScripts';
+import { pythonGtkDaemonCode, ubuntuInstallShellScript, copyqAlternativeScript, quickCurlInstallCommand } from '../data/ubuntuInstallerScripts';
 
 export const UbuntuInstaller: React.FC = () => {
   const [selectedMethod, setSelectedMethod] = useState<'auto' | 'python' | 'copyq'>('auto');
@@ -24,8 +24,6 @@ export const UbuntuInstaller: React.FC = () => {
     setCopiedState(label);
     setTimeout(() => setCopiedState(null), 2000);
   };
-
-  const oneLinerCommand = `bash -c "$(curl -fsSL https://raw.githubusercontent.com/ubuntu-clipmaster/install/main/install.sh 2>/dev/null || echo '${ubuntuInstallShellScript.replace(/'/g, "'\\''")}')"`;
 
   return (
     <div className="space-y-6">
@@ -104,11 +102,37 @@ export const UbuntuInstaller: React.FC = () => {
             </div>
 
             <p className="text-xs text-gray-300 leading-relaxed">
-              Copie o script bash abaixo e cole no terminal do seu Ubuntu (
+              Execute o comando abaixo no terminal do seu Ubuntu (
               <kbd className="px-1.5 py-0.5 bg-black/40 rounded border border-gray-600 font-mono text-[10px]">
                 Ctrl + Alt + T
               </kbd>
-              ). Ele fará tudo sozinho: instalar pacotes leves, criar o serviço de segundo plano e configurar o atalho no GNOME.
+              ) para baixar e instalar automaticamente:
+            </p>
+
+            <div className="relative bg-[#0D0D12] border border-[#3A3A4A] rounded-xl p-3.5 font-mono text-xs text-emerald-400 flex items-center justify-between gap-2 overflow-x-auto">
+              <code className="text-xs select-all text-emerald-400 font-bold whitespace-nowrap">
+                {quickCurlInstallCommand}
+              </code>
+              <button
+                onClick={() => handleCopy(quickCurlInstallCommand, 'quickCurl')}
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-[#2B2B38] hover:bg-[#E95420] text-white text-xs font-medium flex items-center space-x-1.5 transition-all"
+              >
+                {copiedState === 'quickCurl' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar Comando</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400 pt-2">
+              Ou se preferir inspecionar/executar o script de instalação completo:
             </p>
 
             <div className="relative bg-[#121218] border border-[#3A3A4A] rounded-xl p-4 font-mono text-xs text-gray-200 overflow-x-auto">

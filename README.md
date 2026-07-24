@@ -17,32 +17,29 @@ O **ClipMaster** traz para o Ubuntu Linux a praticidade da janela de histórico 
 
 ## 🛠️ Instalação Rápida no Ubuntu
 
-Abra o terminal do Ubuntu (`Ctrl` + `Alt` + `T`) e execute o comando abaixo para instalar as dependências leves e registrar o serviço em segundo plano:
+Abra o terminal do Ubuntu (`Ctrl` + `Alt` + `T`) e execute o comando abaixo para baixar e rodar o instalador automático:
 
 ```bash
-sudo apt update && sudo apt install -y python3-gi xclip wl-clipboard libkeybinder-3.0-0 gir1.2-keybinder-3.0
+curl -fsSL https://raw.githubusercontent.com/itsbravos/ClipMaster-for-Linux/main/scripts/install.sh -o install.sh
+bash install.sh
 ```
 
-### 1. Criar o Executável
+O instalador cuida de tudo sozinho:
 
-Crie o arquivo em `~/.local/bin/clipmaster`:
+1. Instala as dependências leves (`python3-gi`, `xclip`, `wl-clipboard`, `libkeybinder-3.0-0`, `gir1.2-keybinder-3.0`)
+2. Baixa o `clipmaster.py` para `~/.local/bin/clipmaster`
+3. Cria um serviço `systemd --user` para rodar em segundo plano automaticamente
+4. Configura o atalho **Super + C** no GNOME
 
-```bash
-mkdir -p ~/.local/bin
-curl -sSL https://raw.githubusercontent.com/seu-usuario/clipmaster-ubuntu/main/clipmaster.py -o ~/.local/bin/clipmaster
-chmod +x ~/.local/bin/clipmaster
-```
+Depois de instalado, pressione `Super + C` para abrir o histórico de cópias.
 
-### 2. Configurar o Atalho Super + C no GNOME
-
-Execute o comando no terminal para associar a janela de histórico à tecla **Super + C**:
+### Desinstalar
 
 ```bash
-KEY_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipmaster/"
-
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEY_PATH name 'ClipMaster Histórico'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEY_PATH command "$HOME/.local/bin/clipmaster --toggle"
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEY_PATH binding '<Super>c'
+systemctl --user disable --now clipmaster.service
+rm -f ~/.local/bin/clipmaster
+rm -f ~/.config/systemd/user/clipmaster.service
+gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "[]"
 ```
 
 ---

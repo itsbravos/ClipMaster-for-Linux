@@ -1,4 +1,4 @@
-export const pythonGtkDaemonCode = `#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 ClipMaster Ubuntu - Daemon de Histórico de Área de Transferência
 Consumo de RAM: ~10MB a 14MB | Nível de CPU: 0% em repouso
@@ -103,7 +103,7 @@ class ClipboardWindow(Gtk.Window):
                 box.set_margin_start(10)
                 box.set_margin_end(10)
 
-                preview = text.strip().replace("\\n", " ")
+                preview = text.strip().replace("\n", " ")
                 if len(preview) > 60:
                     preview = preview[:57] + "..."
 
@@ -182,91 +182,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-`;
-
-export const quickCurlInstallCommand = `curl -fsSL https://raw.githubusercontent.com/itsbravos/ClipMaster-for-Linux/main/scripts/install.sh -o install.sh && bash install.sh`;
-
-export const ubuntuInstallShellScript = `#!/usr/bin/env bash
-# Script de Instalação Automática do ClipMaster Ubuntu
-# Cria atalho Super+C no GNOME e configura serviço em segundo plano
-
-set -e
-
-echo "=========================================="
-echo "  Instalador ClipMaster Ubuntu (Super+C)  "
-echo "=========================================="
-
-# 1. Instala dependências nativas leves
-echo "[1/4] Instalando dependências de sistema..."
-sudo apt update -qq
-sudo apt install -y python3-gi python3-pip xclip wl-clipboard libkeybinder-3.0-0 gir1.2-keybinder-3.0 -qq
-
-# 2. Cria diretório e arquivo da aplicação
-echo "[2/4] Criando script da aplicação em ~/.local/bin/clipmaster..."
-mkdir -p ~/.local/bin
-
-cat << 'EOF' > ~/.local/bin/clipmaster
-${pythonGtkDaemonCode}
-EOF
-
-chmod +x ~/.local/bin/clipmaster
-
-# 3. Configura serviço de inicialização automática (systemd user service)
-echo "[3/4] Configurando inicialização em segundo plano..."
-mkdir -p ~/.config/systemd/user
-
-cat << 'EOF' > ~/.config/systemd/user/clipmaster.service
-[Unit]
-Description=ClipMaster Ubuntu Clipboard History Daemon
-After=graphical-session.target
-
-[Service]
-ExecStart=%h/.local/bin/clipmaster
-Restart=always
-RestartSec=3
-
-[Install]
-WantedBy=graphical-session.target
-EOF
-
-systemctl --user daemon-reload
-systemctl --user enable clipmaster.service
-systemctl --user restart clipmaster.service || true
-
-# 4. Configura atalho de teclado Super+C no GNOME
-echo "[4/4] Configurando atalho Super+C no GNOME..."
-KEY_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipmaster/"
-
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEY_PATH name 'ClipMaster Histórico de Cópia'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEY_PATH command "$HOME/.local/bin/clipmaster --toggle"
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:$KEY_PATH binding '<Super>c'
-
-# Adiciona à lista de atalhos se não estiver
-CURRENT_BINDINGS=$(gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)
-if [[ "$CURRENT_BINDINGS" != *"$KEY_PATH"* ]]; then
-  if [[ "$CURRENT_BINDINGS" == "@as []" ]] || [[ "$CURRENT_BINDINGS" == "[]" ]]; then
-    NEW_BINDINGS="['$KEY_PATH']"
-  else
-    NEW_BINDINGS=$(echo "$CURRENT_BINDINGS" | sed "s|\]|, '$KEY_PATH']|")
-  fi
-  gsettings set org.gnome.settings-daemon.plugins.media-keys custom-keybindings "$NEW_BINDINGS"
-fi
-
-echo ""
-echo "✨ Concluído com sucesso!"
-echo "Pressione [Super + C] no seu teclado para testar no seu Ubuntu!"
-echo "Uso de Memória: ~12 MB | CPU: 0%"
-`;
-
-export const copyqAlternativeScript = `# Opção alternativa rápida usando CopyQ (Gerenciador Oficial Ultra Leve com Suporte GNOME/Yaru)
-sudo apt update
-sudo apt install -y copyq
-
-# Adiciona ao início do sistema
-copyq &
-
-# Configura atalho Super+C no Ubuntu
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/copyq/ name 'CopyQ Histórico'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/copyq/ command 'copyq toggle'
-gsettings set org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/copyq/ binding '<Super>c'
-`;
