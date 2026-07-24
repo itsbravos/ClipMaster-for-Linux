@@ -3,19 +3,16 @@
 ClipMaster Ubuntu - Daemon de Histórico de Área de Transferência
 Consumo de RAM: ~10MB a 14MB | Nível de CPU: 0% em repouso
 Atalho Padrão: Super + C (configurado via GNOME Shortcuts)
-Funciona em Ubuntu 20.04, 22.04, 24.04 (X11 & Wayland)
+Funciona em Ubuntu 20.04, 22.04, 24.04 (X11 & Wayland via XWayland)
 """
 
 import sys
 import os
 import signal
+import subprocess
+import threading
+import time
 import gi
-
-# Força backend X11 (XWayland) para garantir acesso ao clipboard em sessões Wayland.
-# No GNOME/Mutter, processos em background não conseguem acessar o clipboard
-# via protocolo Wayland nativo. XWayland está sempre disponível no Ubuntu GNOME.
-if os.environ.get("DISPLAY") and not os.environ.get("GDK_BACKEND"):
-    os.environ["GDK_BACKEND"] = "x11"
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
@@ -25,18 +22,36 @@ HISTORY = []
 
 PID_FILE = os.path.expanduser("~/.local/share/clipmaster/clipmaster.pid")
 
-# --- Clipboard via API nativa do GTK (funciona em X11 e Wayland sem subprocessos) ---
 
-def get_clipboard_text():
-    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    return clipboard.wait_for_text()
+# ---------------------------------------------------------------------------
+# Clipboard: subprocess xclip (independente do GTK, funciona em thread)
+# ---------------------------------------------------------------------------
 
-def set_clipboard_text(text):
-    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    clipboard.set_text(text, -1)
-    clipboard.store()
+def xclip_get():
+    try:
+        r = subprocess.run(
+            ["xclip", "-selection", "clipboard", "-o"],
+            capture_output=True, text=True, timeout=2
+        )
+        return r.stdout if r.returncode == 0 else None
+    except Exception:
+        return None
 
-# --- Janela principal ---
+
+def xclip_set(text):
+    try:
+        p = subprocess.Popen(
+            ["xclip", "-selection", "clipboard"],
+            stdin=subprocess.PIPE, text=True
+        )
+        p.communicate(input=text)
+    except Exception as e:
+        print("Erro ao definir clipboard:", e)
+
+
+# ---------------------------------------------------------------------------
+# Janela principal
+# ---------------------------------------------------------------------------
 
 class ClipboardWindow(Gtk.Window):
     def __init__(self):
@@ -45,19 +60,16 @@ class ClipboardWindow(Gtk.Window):
         self.set_default_size(420, 520)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
-        self.set_decorated(True)
-        # Impede que a janela apareça na barra de tarefas ou no Alt+Tab
         self.set_skip_taskbar_hint(True)
         self.set_skip_pager_hint(True)
 
-        settings = Gtk.Settings.get_default()
-        settings.set_property("gtk-application-prefer-dark-theme", True)
+        Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", True)
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.add(vbox)
 
-        self.search_entry = Gtk.SearchEntry()
-        self.search_entry.set_placeholder_text("Pesquisar no histórico (Super+C)...")
+        self.search_entry = Gtk.Entry()
+        self.search_entry.set_placeholder_text("Pesquisar no histórico...")
         self.search_entry.connect("changed", self.on_search_changed)
         vbox.pack_start(self.search_entry, False, False, 0)
 
@@ -71,14 +83,12 @@ class ClipboardWindow(Gtk.Window):
         scrolled.add(self.listbox)
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        lbl_info = Gtk.Label(label="Pressione Enter para copiar | Esc para fechar")
-        lbl_info.set_opacity(0.7)
-        footer.pack_start(lbl_info, True, True, 0)
-
+        lbl = Gtk.Label(label="Enter para copiar | Esc para fechar")
+        lbl.set_opacity(0.6)
+        footer.pack_start(lbl, True, True, 0)
         btn_clear = Gtk.Button(label="Limpar")
         btn_clear.connect("clicked", self.on_clear_clicked)
         footer.pack_end(btn_clear, False, False, 0)
-
         vbox.pack_start(footer, False, False, 0)
 
         self.connect("key-press-event", self.on_key_press)
@@ -91,7 +101,6 @@ class ClipboardWindow(Gtk.Window):
     def refresh_list(self, filter_text=""):
         for child in self.listbox.get_children():
             self.listbox.remove(child)
-
         for idx, text in enumerate(HISTORY):
             if filter_text.lower() in text.lower():
                 row = Gtk.ListBoxRow()
@@ -100,19 +109,15 @@ class ClipboardWindow(Gtk.Window):
                 box.set_margin_bottom(6)
                 box.set_margin_start(10)
                 box.set_margin_end(10)
-
                 preview = text.strip().replace("\n", " ")
                 if len(preview) > 60:
                     preview = preview[:57] + "..."
-
                 lbl = Gtk.Label(label=f"{idx + 1}.  {preview}")
                 lbl.set_xalign(0)
                 box.pack_start(lbl, True, True, 0)
-
                 row.add(box)
                 row.text_full = text
                 self.listbox.add(row)
-
         self.listbox.show_all()
 
     def on_search_changed(self, entry):
@@ -120,7 +125,7 @@ class ClipboardWindow(Gtk.Window):
 
     def on_row_selected(self, listbox, row):
         if row and hasattr(row, 'text_full'):
-            set_clipboard_text(row.text_full)
+            xclip_set(row.text_full)
             self.hide()
 
     def on_clear_clicked(self, btn):
@@ -134,35 +139,33 @@ class ClipboardWindow(Gtk.Window):
             return True
         return False
 
-# --- Monitoramento de clipboard no main loop do GTK (thread-safe, assíncrono) ---
 
-def setup_clipboard_monitor(win):
-    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-    last_text = {"value": ""}
+# ---------------------------------------------------------------------------
+# Monitor de clipboard em thread separada (xclip, sem GTK)
+# ---------------------------------------------------------------------------
 
-    def on_text_received(cb, text, user_data):
-        if not text or not text.strip():
-            return
-        if text != last_text["value"]:
-            last_text["value"] = text
-            if text in HISTORY:
-                HISTORY.remove(text)
-            HISTORY.insert(0, text)
+def clipboard_monitor_loop(win):
+    last_text = ""
+    while True:
+        curr = xclip_get()
+        if curr and curr.strip() and curr != last_text:
+            last_text = curr
+            if curr in HISTORY:
+                HISTORY.remove(curr)
+            HISTORY.insert(0, curr)
             if len(HISTORY) > MAX_HISTORY:
                 HISTORY.pop()
             if win.is_visible():
-                win.refresh_list()
+                GLib.idle_add(win.refresh_list)
+        time.sleep(0.6)
 
-    def check_clipboard():
-        # request_text é assíncrono — não bloqueia o main loop
-        clipboard.request_text(on_text_received, None)
-        return True  # mantém o timer ativo
 
-    GLib.timeout_add(600, check_clipboard)
-
-# --- Toggle da janela ---
+# ---------------------------------------------------------------------------
+# Toggle da janela
+# ---------------------------------------------------------------------------
 
 _toggle_pending = False
+
 
 def toggle_window(win):
     global _toggle_pending
@@ -174,21 +177,25 @@ def toggle_window(win):
         win.show_all()
         win.present()
         win.search_entry.grab_focus()
-    return False  # remove do idle_add
+    return False
+
 
 def schedule_toggle(win):
-    """Agenda um único toggle, ignorando sinais duplicados rápidos."""
     global _toggle_pending
     if not _toggle_pending:
         _toggle_pending = True
         GLib.idle_add(toggle_window, win)
 
-# --- PID file ---
+
+# ---------------------------------------------------------------------------
+# PID file
+# ---------------------------------------------------------------------------
 
 def write_pid_file():
     os.makedirs(os.path.dirname(PID_FILE), exist_ok=True)
     with open(PID_FILE, "w") as f:
         f.write(str(os.getpid()))
+
 
 def remove_pid_file():
     try:
@@ -196,8 +203,8 @@ def remove_pid_file():
     except FileNotFoundError:
         pass
 
+
 def send_toggle_to_daemon():
-    """Envia SIGUSR1 ao daemon em execução para alternar a janela."""
     try:
         with open(PID_FILE) as f:
             pid = int(f.read().strip())
@@ -206,11 +213,14 @@ def send_toggle_to_daemon():
         print("! Daemon não está rodando.")
         sys.exit(1)
     except ProcessLookupError:
-        print("! Processo do daemon não encontrado. Daemon pode ter travado.")
+        print("! Daemon travado, limpando PID.")
         remove_pid_file()
         sys.exit(1)
 
-# --- Entry point ---
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
 
 def main():
     if "--toggle" in sys.argv:
@@ -219,13 +229,7 @@ def main():
 
     Gtk.init(sys.argv)
     win = ClipboardWindow()
-    # show_all + hide inicializa todos os widgets filhos corretamente sem exibir a janela.
-    # realize() não inicializa os filhos — show_all+hide é necessário para evitar
-    # gtk_widget_event: assertion 'WIDGET_REALIZED_FOR_EVENT' ao abrir a janela.
-    win.show_all()
-    win.hide()
 
-    # SIGUSR1 via GLib — seguro dentro do GTK main loop
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1,
                          lambda: schedule_toggle(win) or True)
 
@@ -233,10 +237,12 @@ def main():
     import atexit
     atexit.register(remove_pid_file)
 
-    setup_clipboard_monitor(win)
+    t = threading.Thread(target=clipboard_monitor_loop, args=(win,), daemon=True)
+    t.start()
 
     print("✓ ClipMaster iniciado. Pressione Super+C para abrir o histórico.")
     Gtk.main()
+
 
 if __name__ == "__main__":
     main()
