@@ -26,9 +26,9 @@ bash install.sh
 
 O instalador cuida de tudo sozinho:
 
-1. Instala as dependências leves (`python3-gi`, `xclip`, `wl-clipboard`)
+1. Instala as dependências (`python3-gi`, `gir1.2-gtk-3.0`)
 2. Baixa o `clipmaster.py` para `~/.local/bin/clipmaster`
-3. Cria um serviço `systemd --user` para rodar em segundo plano automaticamente
+3. Configura autostart via XDG para rodar em segundo plano automaticamente
 4. Configura o atalho **Super + C** no GNOME
 
 Depois de instalado, pressione `Super + C` para abrir o histórico de cópias.
