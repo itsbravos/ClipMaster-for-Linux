@@ -9,10 +9,13 @@ Funciona em Ubuntu 20.04, 22.04, 24.04 (X11 & Wayland via XWayland)
 import sys
 import os
 import signal
-import subprocess
-import threading
-import time
 import gi
+
+# GDK_BACKEND=x11 faz o GTK usar XWayland, que ponteia o clipboard
+# Wayland↔X11. O sinal owner-change funciona corretamente nesse modo
+# mesmo em sessões Wayland GNOME onde xclip não consegue ler o clipboard.
+if os.environ.get("DISPLAY") and not os.environ.get("GDK_BACKEND"):
+    os.environ["GDK_BACKEND"] = "x11"
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
@@ -24,29 +27,17 @@ PID_FILE = os.path.expanduser("~/.local/share/clipmaster/clipmaster.pid")
 
 
 # ---------------------------------------------------------------------------
-# Clipboard: subprocess xclip (independente do GTK, funciona em thread)
+# Clipboard via GTK (X11 backend via XWayland)
 # ---------------------------------------------------------------------------
 
-def xclip_get():
-    try:
-        r = subprocess.run(
-            ["xclip", "-selection", "clipboard", "-o"],
-            capture_output=True, text=True, timeout=2
-        )
-        return r.stdout if r.returncode == 0 else None
-    except Exception:
-        return None
+def gtk_clipboard():
+    return Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
 
 
-def xclip_set(text):
-    try:
-        p = subprocess.Popen(
-            ["xclip", "-selection", "clipboard"],
-            stdin=subprocess.PIPE, text=True
-        )
-        p.communicate(input=text)
-    except Exception as e:
-        print("Erro ao definir clipboard:", e)
+def set_clipboard_text(text):
+    cb = gtk_clipboard()
+    cb.set_text(text, -1)
+    cb.store()
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +116,7 @@ class ClipboardWindow(Gtk.Window):
 
     def on_row_selected(self, listbox, row):
         if row and hasattr(row, 'text_full'):
-            xclip_set(row.text_full)
+            set_clipboard_text(row.text_full)
             self.hide()
 
     def on_clear_clicked(self, btn):
@@ -141,23 +132,31 @@ class ClipboardWindow(Gtk.Window):
 
 
 # ---------------------------------------------------------------------------
-# Monitor de clipboard em thread separada (xclip, sem GTK)
+# Monitor de clipboard via owner-change (GTK, main loop, X11/XWayland)
 # ---------------------------------------------------------------------------
 
-def clipboard_monitor_loop(win):
-    last_text = ""
-    while True:
-        curr = xclip_get()
-        if curr and curr.strip() and curr != last_text:
-            last_text = curr
-            if curr in HISTORY:
-                HISTORY.remove(curr)
-            HISTORY.insert(0, curr)
-            if len(HISTORY) > MAX_HISTORY:
-                HISTORY.pop()
-            if win.is_visible():
-                GLib.idle_add(win.refresh_list)
-        time.sleep(0.6)
+def setup_clipboard_monitor(win):
+    cb = gtk_clipboard()
+    last_text = {"value": ""}
+
+    def on_owner_change(clipboard, event):
+        # wait_for_text() chamado imediatamente após owner-change funciona
+        # porque o dono ainda está ativo no momento do evento
+        text = clipboard.wait_for_text()
+        if not text or not text.strip():
+            return
+        if text == last_text["value"]:
+            return
+        last_text["value"] = text
+        if text in HISTORY:
+            HISTORY.remove(text)
+        HISTORY.insert(0, text)
+        if len(HISTORY) > MAX_HISTORY:
+            HISTORY.pop()
+        if win.is_visible():
+            win.refresh_list()
+
+    cb.connect("owner-change", on_owner_change)
 
 
 # ---------------------------------------------------------------------------
@@ -244,8 +243,7 @@ def main():
     import atexit
     atexit.register(remove_pid_file)
 
-    t = threading.Thread(target=clipboard_monitor_loop, args=(win,), daemon=True)
-    t.start()
+    setup_clipboard_monitor(win)
 
     print("✓ ClipMaster iniciado. Pressione Super+C para abrir o histórico.")
     Gtk.main()
