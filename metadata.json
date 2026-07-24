@@ -1,0 +1,6 @@
+{
+  "name": "Histórico de Área de Transferência Ubuntu",
+  "description": "Gerenciador e instalador de histórico de área de transferência estilo Windows (Super+V) para Ubuntu Linux.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
