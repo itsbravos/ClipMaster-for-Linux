@@ -6,7 +6,7 @@
 
 ## 📌 Visão Geral
 
-O **ClipMaster** traz para o Ubuntu Linux a praticidade da janela de histórico de cópias estilo Windows, ajustado para evitar conflitos de teclas nas distribuições Linux utilizando o atalho **Super + C** (ou **Ctrl + Alt + C**).
+O **ClipMaster** traz para o Ubuntu Linux a praticidade da janela de histórico de cópias estilo Windows, ajustado para evitar conflitos de teclas nas distribuições Linux utilizando o atalho **Super + C**.
 
 - ⚡ **Ultraleve:** Desenvolvido com daemon em Python 3 e GTK3 nativo do GNOME (~12 MB de RAM e 0% de CPU em repouso).
 - 🚀 **Nativo no Ubuntu:** Compatível com Ubuntu 20.04, 22.04 LTS e 24.04 LTS (X11 & Wayland).
@@ -26,7 +26,7 @@ bash install.sh
 
 O instalador cuida de tudo sozinho:
 
-1. Instala as dependências leves (`python3-gi`, `xclip`, `wl-clipboard`, `libkeybinder-3.0-0`, `gir1.2-keybinder-3.0`)
+1. Instala as dependências leves (`python3-gi`, `xclip`, `wl-clipboard`)
 2. Baixa o `clipmaster.py` para `~/.local/bin/clipmaster`
 3. Cria um serviço `systemd --user` para rodar em segundo plano automaticamente
 4. Configura o atalho **Super + C** no GNOME
