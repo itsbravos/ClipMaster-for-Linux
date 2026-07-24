@@ -11,12 +11,6 @@ import os
 import signal
 import gi
 
-# GDK_BACKEND=x11 faz o GTK usar XWayland, que ponteia o clipboard
-# Wayland↔X11. O sinal owner-change funciona corretamente nesse modo
-# mesmo em sessões Wayland GNOME onde xclip não consegue ler o clipboard.
-if os.environ.get("DISPLAY") and not os.environ.get("GDK_BACKEND"):
-    os.environ["GDK_BACKEND"] = "x11"
-
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
 
@@ -51,8 +45,6 @@ class ClipboardWindow(Gtk.Window):
         self.set_default_size(420, 520)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
-        self.set_skip_taskbar_hint(True)
-        self.set_skip_pager_hint(True)
 
         Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", True)
 
@@ -140,8 +132,6 @@ def setup_clipboard_monitor(win):
     last_text = {"value": ""}
 
     def on_owner_change(clipboard, event):
-        # wait_for_text() chamado imediatamente após owner-change funciona
-        # porque o dono ainda está ativo no momento do evento
         text = clipboard.wait_for_text()
         if not text or not text.strip():
             return
@@ -163,12 +153,7 @@ def setup_clipboard_monitor(win):
 # Toggle da janela
 # ---------------------------------------------------------------------------
 
-_toggle_pending = False
-
-
 def toggle_window(win):
-    global _toggle_pending
-    _toggle_pending = False
     if win.is_visible():
         win.hide()
     else:
@@ -177,13 +162,6 @@ def toggle_window(win):
         win.present()
         win.search_entry.grab_focus()
     return False
-
-
-def schedule_toggle(win):
-    global _toggle_pending
-    if not _toggle_pending:
-        _toggle_pending = True
-        GLib.idle_add(toggle_window, win)
 
 
 # ---------------------------------------------------------------------------
@@ -236,8 +214,10 @@ def main():
         return False
     GLib.idle_add(init_win)
 
-    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1,
-                         lambda: schedule_toggle(win) or True)
+    def on_sigusr1(signum, frame):
+        GLib.idle_add(toggle_window, win)
+
+    signal.signal(signal.SIGUSR1, on_sigusr1)
 
     write_pid_file()
     import atexit
