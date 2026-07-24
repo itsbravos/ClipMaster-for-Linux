@@ -230,6 +230,13 @@ def main():
     Gtk.init(sys.argv)
     win = ClipboardWindow()
 
+    # Inicializa widgets filhos após o main loop estar rodando (evita race condition)
+    def init_win():
+        win.show_all()
+        win.hide()
+        return False
+    GLib.idle_add(init_win)
+
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1,
                          lambda: schedule_toggle(win) or True)
 
