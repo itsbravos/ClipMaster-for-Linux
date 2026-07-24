@@ -9,7 +9,6 @@ Funciona em Ubuntu 20.04, 22.04, 24.04 (X11 & Wayland)
 import sys
 import os
 import signal
-import threading
 import gi
 
 gi.require_version('Gtk', '3.0')
@@ -129,30 +128,32 @@ class ClipboardWindow(Gtk.Window):
             return True
         return False
 
-# --- Monitoramento de clipboard em thread separada ---
+# --- Monitoramento de clipboard no main loop do GTK (thread-safe) ---
 
-def clipboard_monitor_loop(win):
-    last_text = ""
-    while True:
+def setup_clipboard_monitor(win):
+    """Usa GLib.timeout_add para rodar no main loop — Gtk.Clipboard exige a thread principal."""
+    clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+    last_text = {"value": ""}
+
+    def check_clipboard():
         try:
-            curr = get_clipboard_text()
+            curr = clipboard.wait_for_text()
         except Exception:
-            curr = None
+            return True  # continua tentando
 
-        if curr and curr.strip() and curr != last_text:
-            last_text = curr
+        if curr and curr.strip() and curr != last_text["value"]:
+            last_text["value"] = curr
             if curr in HISTORY:
                 HISTORY.remove(curr)
             HISTORY.insert(0, curr)
             if len(HISTORY) > MAX_HISTORY:
                 HISTORY.pop()
             if win.is_visible():
-                GLib.idle_add(win.refresh_list)
+                win.refresh_list()
 
-        # Usa GLib.timeout_add para não bloquear o loop com time.sleep
-        # A thread dorme 600ms de forma compatível com GLib
-        import time
-        time.sleep(0.6)
+        return True  # mantém o timer ativo
+
+    GLib.timeout_add(600, check_clipboard)
 
 # --- Toggle da janela ---
 
@@ -221,8 +222,7 @@ def main():
     import atexit
     atexit.register(remove_pid_file)
 
-    t = threading.Thread(target=clipboard_monitor_loop, args=(win,), daemon=True)
-    t.start()
+    setup_clipboard_monitor(win)
 
     print("✓ ClipMaster iniciado. Pressione Super+C para abrir o histórico.")
     Gtk.main()
