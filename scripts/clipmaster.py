@@ -11,6 +11,12 @@ import os
 import signal
 import gi
 
+# Força backend X11 (XWayland) para garantir acesso ao clipboard em sessões Wayland.
+# No GNOME/Mutter, processos em background não conseguem acessar o clipboard
+# via protocolo Wayland nativo. XWayland está sempre disponível no Ubuntu GNOME.
+if os.environ.get("DISPLAY") and not os.environ.get("GDK_BACKEND"):
+    os.environ["GDK_BACKEND"] = "x11"
+
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
 
