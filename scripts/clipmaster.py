@@ -2,28 +2,28 @@
 """
 ClipMaster Ubuntu - Daemon de Histórico de Área de Transferência
 Consumo de RAM: ~10MB a 14MB | Nível de CPU: 0% em repouso
-Atalho Padrão: Super + C (ou Ctrl + Alt + C)
+Atalho Padrão: Super + C (configurado via GNOME Shortcuts)
 Funciona em Ubuntu 20.04, 22.04, 24.04 (X11 & Wayland)
 """
 
 import sys
 import os
 import time
+import signal
 import subprocess
 import threading
 import gi
 
 gi.require_version('Gtk', '3.0')
-gi.require_version('Keybinder', '3.0')
-from gi.repository import Gtk, Gdk, GLib, Keybinder
+from gi.repository import Gtk, Gdk, GLib
 
 MAX_HISTORY = 50
 HISTORY = []
-PINNED = set()
+
+PID_FILE = os.path.expanduser("~/.local/share/clipmaster/clipmaster.pid")
 
 def get_clipboard_text():
     try:
-        # Detecta Wayland ou X11
         if os.environ.get("WAYLAND_DISPLAY"):
             res = subprocess.run(["wl-paste", "--no-newline"], capture_output=True, text=True, timeout=1)
         else:
@@ -51,7 +51,7 @@ class ClipboardWindow(Gtk.Window):
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
         self.set_decorated(True)
-        
+
         # Tema Escuro Yaru
         settings = Gtk.Settings.get_default()
         settings.set_property("gtk-application-prefer-dark-theme", True)
@@ -88,7 +88,12 @@ class ClipboardWindow(Gtk.Window):
         vbox.pack_start(footer, False, False, 0)
 
         self.connect("key-press-event", self.on_key_press)
-        self.connect("delete-event", lambda w, e: self.hide_on_delete())
+        # Corrigido: hide_on_delete não existia → usar hide() diretamente
+        self.connect("delete-event", self.on_delete_event)
+
+    def on_delete_event(self, widget, event):
+        self.hide()
+        return True  # impede destruição da janela
 
     def refresh_list(self, filter_text=""):
         for child in self.listbox.get_children():
@@ -147,7 +152,9 @@ def clipboard_monitor_loop(win):
             HISTORY.insert(0, curr)
             if len(HISTORY) > MAX_HISTORY:
                 HISTORY.pop()
-            GLib.idle_add(win.refresh_list)
+            # Só atualiza a lista se a janela estiver visível
+            if win.is_visible():
+                GLib.idle_add(win.refresh_list)
         time.sleep(0.6)
 
 def toggle_window(win):
@@ -158,26 +165,57 @@ def toggle_window(win):
         win.present()
         win.search_entry.grab_focus()
 
+def write_pid_file():
+    os.makedirs(os.path.dirname(PID_FILE), exist_ok=True)
+    with open(PID_FILE, "w") as f:
+        f.write(str(os.getpid()))
+
+def remove_pid_file():
+    try:
+        os.remove(PID_FILE)
+    except FileNotFoundError:
+        pass
+
+def send_toggle_to_daemon():
+    """Envia SIGUSR1 ao daemon em execução para alternar a janela."""
+    try:
+        with open(PID_FILE) as f:
+            pid = int(f.read().strip())
+        os.kill(pid, signal.SIGUSR1)
+        print(f"✓ Sinal enviado ao daemon (PID {pid}).")
+    except FileNotFoundError:
+        print("! Daemon não está rodando. Inicie com: systemctl --user start clipmaster")
+        sys.exit(1)
+    except ProcessLookupError:
+        print("! PID no arquivo não corresponde a processo ativo. Daemon pode ter travado.")
+        remove_pid_file()
+        sys.exit(1)
+
 def main():
+    if "--toggle" in sys.argv:
+        # Modo toggle: apenas envia sinal ao daemon, não sobe nova janela GTK
+        send_toggle_to_daemon()
+        return
+
     Gtk.init(sys.argv)
     win = ClipboardWindow()
 
-    # Inicia Thread de monitoramento
+    # Handler de SIGUSR1 para receber toggle do comando `clipmaster --toggle`
+    def on_sigusr1(signum, frame):
+        GLib.idle_add(toggle_window, win)
+
+    signal.signal(signal.SIGUSR1, on_sigusr1)
+
+    # Registra PID e garante limpeza ao sair
+    write_pid_file()
+    import atexit
+    atexit.register(remove_pid_file)
+
+    # Inicia thread de monitoramento do clipboard
     t = threading.Thread(target=clipboard_monitor_loop, args=(win,), daemon=True)
     t.start()
 
-    # Tenta registrar atalho global com Keybinder (X11)
-    try:
-        Keybinder.init()
-        Keybinder.bind("<Super>c", lambda k: toggle_window(win))
-        Keybinder.bind("<Ctrl><Alt>c", lambda k: toggle_window(win))
-        print("✓ Atalho Super+C e Ctrl+Alt+C registrados via Keybinder.")
-    except Exception:
-        print("! Dica: Para Wayland, configure o comando 'clipmaster --toggle' no GNOME Shortcuts.")
-
-    if "--toggle" in sys.argv:
-        toggle_window(win)
-
+    print("✓ ClipMaster daemon iniciado. Pressione Super+C para abrir o histórico.")
     Gtk.main()
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ echo "=========================================="
 # 1. Instala dependências nativas leves
 echo "[1/4] Instalando dependências de sistema..."
 sudo apt update -qq
-sudo apt install -y python3-gi python3-pip xclip wl-clipboard libkeybinder-3.0-0 gir1.2-keybinder-3.0 -qq
+sudo apt install -y python3-gi python3-pip xclip wl-clipboard -qq
 
 # 2. Baixa o daemon do repositório
 echo "[2/4] Baixando clipmaster.py para ~/.local/bin/clipmaster..."
@@ -30,8 +30,8 @@ After=graphical-session.target
 
 [Service]
 ExecStart=%h/.local/bin/clipmaster
-Restart=always
-RestartSec=3
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=graphical-session.target
