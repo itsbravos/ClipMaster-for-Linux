@@ -11,7 +11,7 @@ echo "=========================================="
 # 1. Instala dependências
 echo "[1/4] Instalando dependências de sistema..."
 sudo apt update -qq
-sudo apt install -y python3-gi gir1.2-gtk-3.0 xclip -qq
+sudo apt install -y python3-gi gir1.2-gtk-3.0 -qq
 
 # 2. Baixa o daemon
 echo "[2/4] Baixando clipmaster para ~/.local/bin/clipmaster..."
