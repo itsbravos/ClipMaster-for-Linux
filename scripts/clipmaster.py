@@ -171,6 +171,7 @@ def toggle_window(win):
         win.hide()
     else:
         win.refresh_list()
+        win.show_all()
         win.present()
         win.search_entry.grab_focus()
     return False  # remove do idle_add
@@ -218,7 +219,11 @@ def main():
 
     Gtk.init(sys.argv)
     win = ClipboardWindow()
-    win.realize()  # inicializa a janela no display sem exibi-la
+    # show_all + hide inicializa todos os widgets filhos corretamente sem exibir a janela.
+    # realize() não inicializa os filhos — show_all+hide é necessário para evitar
+    # gtk_widget_event: assertion 'WIDGET_REALIZED_FOR_EVENT' ao abrir a janela.
+    win.show_all()
+    win.hide()
 
     # SIGUSR1 via GLib — seguro dentro do GTK main loop
     GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1,
