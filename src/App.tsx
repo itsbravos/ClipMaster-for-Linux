@@ -28,6 +28,28 @@ function fontSoundDefault() {
   return true;
 }
 
+// Interpreta uma string de atalho no formato "Ctrl + Alt + V" e verifica se o
+// KeyboardEvent recebido corresponde exatamente às teclas modificadoras e à tecla final.
+function matchesShortcut(e: KeyboardEvent, shortcut: string): boolean {
+  const parts = shortcut.split('+').map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return false;
+
+  const key = parts[parts.length - 1];
+  const mods = parts.slice(0, -1);
+
+  const wantSuper = mods.includes('Super');
+  const wantCtrl = mods.includes('Ctrl');
+  const wantAlt = mods.includes('Alt');
+  const wantShift = mods.includes('Shift');
+
+  if (wantSuper !== e.metaKey) return false;
+  if (wantCtrl !== e.ctrlKey) return false;
+  if (wantAlt !== e.altKey) return false;
+  if (wantShift !== e.shiftKey) return false;
+
+  return e.key.toLowerCase() === key.toLowerCase();
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('simulator');
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
@@ -137,15 +159,10 @@ export default function App() {
     [settings.maxItems, playCopySound]
   );
 
-  // Global Keyboard listener for Super + C or Super + V or Windows shortcuts
+  // Global keyboard listener — abre/fecha o pop-up com o atalho configurado em Configurações
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const isMetaC = (e.metaKey || e.key === 'Meta') && (e.key === 'c' || e.key === 'C');
-      const isMetaV = (e.metaKey || e.key === 'Meta') && (e.key === 'v' || e.key === 'V');
-      const isAltC = e.altKey && (e.key === 'c' || e.key === 'C');
-      const isCtrlShiftC = e.ctrlKey && e.shiftKey && (e.key === 'c' || e.key === 'C');
-
-      if (isMetaC || isMetaV || isAltC || isCtrlShiftC) {
+      if (matchesShortcut(e, settings.shortcut)) {
         e.preventDefault();
         setIsOverlayOpen((prev) => !prev);
       }
@@ -153,7 +170,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [settings.shortcut]);
 
   // Intercept Copy event inside window
   useEffect(() => {

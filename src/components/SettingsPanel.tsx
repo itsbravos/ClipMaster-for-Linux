@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Settings,
   Keyboard,
@@ -14,6 +14,32 @@ import {
   Zap,
 } from 'lucide-react';
 import { AppSettings, ThemeMode } from '../types';
+
+const SHORTCUT_PRESETS = [
+  { value: 'Super + C', label: 'Super + C (Recomendado no Linux - Sem Conflitos)' },
+  { value: 'Super + V', label: 'Super + V (Estilo Windows)' },
+  { value: 'Ctrl + Shift + V', label: 'Ctrl + Shift + V' },
+  { value: 'Alt + C', label: 'Alt + C' },
+  { value: 'Alt + V', label: 'Alt + V' },
+  { value: 'Ctrl + Alt + V', label: 'Ctrl + Alt + V' },
+];
+
+const MODIFIER_KEYS = new Set(['Control', 'Alt', 'Shift', 'Meta', 'OS']);
+
+// Converte um KeyboardEvent em um rótulo "Ctrl + Alt + V" (2 ou 3 teclas: até 2 modificadores + 1 tecla final).
+function buildShortcutLabel(e: KeyboardEvent): string | null {
+  if (MODIFIER_KEYS.has(e.key)) return null;
+
+  const mods: string[] = [];
+  if (e.metaKey) mods.push('Super');
+  if (e.ctrlKey) mods.push('Ctrl');
+  if (e.altKey) mods.push('Alt');
+  if (e.shiftKey) mods.push('Shift');
+  if (mods.length === 0) return null;
+
+  const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  return [...mods.slice(0, 2), key].join(' + ');
+}
 
 interface SettingsPanelProps {
   settings: AppSettings;
@@ -31,11 +57,41 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onImportData,
 }) => {
   const [savedMessage, setSavedMessage] = useState(false);
+  const [isRecordingShortcut, setIsRecordingShortcut] = useState(false);
+  const [shortcutError, setShortcutError] = useState<string | null>(null);
 
   const handleSave = () => {
     setSavedMessage(true);
     setTimeout(() => setSavedMessage(false), 2000);
   };
+
+  useEffect(() => {
+    if (!isRecordingShortcut) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (e.key === 'Escape') {
+        setIsRecordingShortcut(false);
+        return;
+      }
+
+      const label = buildShortcutLabel(e);
+      if (!label) {
+        setShortcutError('Combine com Ctrl, Alt, Super ou Shift + uma tecla.');
+        return;
+      }
+
+      onUpdateSettings({ shortcut: label });
+      handleSave();
+      setShortcutError(null);
+      setIsRecordingShortcut(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isRecordingShortcut, onUpdateSettings]);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -92,13 +148,41 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 }}
                 className="w-full bg-[#14141C] border border-[#3A3A4A] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#E95420]"
               >
-                <option value="Super + C">Super + C (Recomendado no Linux - Sem Conflitos)</option>
-                <option value="Super + V">Super + V (Estilo Windows)</option>
-                <option value="Ctrl + Shift + V">Ctrl + Shift + V</option>
-                <option value="Alt + C">Alt + C</option>
-                <option value="Alt + V">Alt + V</option>
-                <option value="Ctrl + Alt + V">Ctrl + Alt + V</option>
+                {!SHORTCUT_PRESETS.some((p) => p.value === settings.shortcut) && (
+                  <option value={settings.shortcut}>{settings.shortcut} (Personalizado)</option>
+                )}
+                {SHORTCUT_PRESETS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
               </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShortcutError(null);
+                  setIsRecordingShortcut(true);
+                }}
+                className={`w-full mt-2 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  isRecordingShortcut
+                    ? 'bg-[#E95420] text-white animate-pulse'
+                    : 'bg-[#2B2B38] hover:bg-[#383848] text-gray-200'
+                }`}
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                <span>
+                  {isRecordingShortcut
+                    ? 'Pressione a combinação… (Esc cancela)'
+                    : 'Gravar atalho personalizado'}
+                </span>
+              </button>
+              {shortcutError && (
+                <p className="text-[10px] text-red-400 mt-1">{shortcutError}</p>
+              )}
+              <p className="text-[10px] text-gray-500 mt-1">
+                Use até 2 modificadores (Ctrl, Alt, Super, Shift) + 1 tecla, ex: Ctrl + Alt + V.
+              </p>
             </div>
 
             {/* Max Items */}

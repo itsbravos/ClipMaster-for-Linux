@@ -2,7 +2,7 @@
 """
 ClipMaster Ubuntu - Daemon de Histórico de Área de Transferência
 Consumo de RAM: ~15MB | Nível de CPU: 0% em repouso
-Atalho Padrão: Super + C (configurado via GNOME Shortcuts)
+Atalho Padrão: Super + C (personalizável na aba de Configurações)
 Funciona em Ubuntu 20.04, 22.04, 24.04 (Wayland & X11)
 """
 
@@ -10,7 +10,9 @@ import sys
 import os
 import re
 import json
+import shutil
 import signal
+import subprocess
 import gi
 
 gi.require_version('Gtk', '3.0')
@@ -59,12 +61,23 @@ ACCENT_PRESETS = [
     ("Laranja", "#E95420"),
 ]
 
+# Atalhos pré-definidos (formato de acelerador do GTK/GNOME: <Super>c, <Control><Alt>v, ...)
+SHORTCUT_PRESETS = [
+    ("Super + C", "<Super>c"),
+    ("Super + V", "<Super>v"),
+    ("Ctrl + Alt + V", "<Control><Alt>v"),
+    ("Ctrl + Shift + V", "<Control><Shift>v"),
+    ("Super + Shift + C", "<Super><Shift>c"),
+]
+DEFAULT_SHORTCUT = "<Super>c"
+
 DEFAULT_CONFIG = {
     "theme": "dark",              # "dark" | "light"
     "accent": "#8B5CF6",
     "display_mode": "tray" if INDICATOR_BACKEND else "window",  # "tray" | "window"
     "max_history": 50,
     "mask_new_items": False,
+    "shortcut": DEFAULT_SHORTCUT,  # acelerador GTK usado como atalho global
 }
 
 
@@ -87,6 +100,63 @@ def save_config(cfg):
 
 
 CONFIG = load_config()
+
+
+# ---------------------------------------------------------------------------
+# Atalho global (registrado como custom keybinding do GNOME)
+# ---------------------------------------------------------------------------
+
+GSETTINGS_SCHEMA = "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding"
+GSETTINGS_KEY_PATH = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/clipmaster/"
+
+
+def accel_label(accel):
+    """Converte um acelerador GTK (ex: '<Super>c') em um rótulo legível (ex: 'Super+C')."""
+    try:
+        keyval, mods = Gtk.accelerator_parse(accel)
+        if keyval == 0:
+            return accel
+        return Gtk.accelerator_get_label(keyval, mods)
+    except Exception:
+        return accel
+
+
+def apply_shortcut(accel):
+    """Registra `accel` como o atalho global do ClipMaster via gsettings (GNOME)."""
+    if not shutil.which("gsettings"):
+        return False
+    binding_cmd = f"{os.path.expanduser('~/.local/bin/clipmaster')} --toggle"
+    try:
+        schema_path = f"{GSETTINGS_SCHEMA}:{GSETTINGS_KEY_PATH}"
+        checks = [
+            subprocess.run(["gsettings", "set", schema_path, "name", "ClipMaster Histórico de Cópia"],
+                            capture_output=True),
+            subprocess.run(["gsettings", "set", schema_path, "command", binding_cmd],
+                            capture_output=True),
+            subprocess.run(["gsettings", "set", schema_path, "binding", accel],
+                            capture_output=True),
+        ]
+        if any(c.returncode != 0 for c in checks):
+            return False
+
+        result = subprocess.run(
+            ["gsettings", "get", "org.gnome.settings-daemon.plugins.media-keys", "custom-keybindings"],
+            capture_output=True, text=True
+        )
+        current = result.stdout.strip()
+        if GSETTINGS_KEY_PATH not in current:
+            if current in ("@as []", "[]", ""):
+                new_bindings = f"['{GSETTINGS_KEY_PATH}']"
+            else:
+                new_bindings = current[:-1] + f", '{GSETTINGS_KEY_PATH}']"
+            subprocess.run(
+                ["gsettings", "set", "org.gnome.settings-daemon.plugins.media-keys",
+                 "custom-keybindings", new_bindings],
+                capture_output=True
+            )
+        return True
+    except Exception:
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +481,56 @@ class SettingsDialog(Gtk.Dialog):
         self.mask_check.set_active(CONFIG["mask_new_items"])
         content.pack_start(self.mask_check, False, False, 0)
 
+        content.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
+
+        # Atalho de teclado
+        content.pack_start(self._section_label("Atalho de Teclado"), False, False, 0)
+
+        self._preset_ids = {accel for _, accel in SHORTCUT_PRESETS}
+        self._selected_shortcut = CONFIG["shortcut"]
+        self._capturing_shortcut = False
+
+        preset_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        preset_box.pack_start(Gtk.Label(label="Predefinidos"), False, False, 0)
+        self.shortcut_combo = Gtk.ComboBoxText()
+        for label, accel in SHORTCUT_PRESETS:
+            self.shortcut_combo.append(accel, label)
+        self.shortcut_combo.append("custom", "Personalizado…")
+        self.shortcut_combo.set_active_id(
+            CONFIG["shortcut"] if CONFIG["shortcut"] in self._preset_ids else "custom"
+        )
+        self.shortcut_combo.connect("changed", self._on_shortcut_preset_changed)
+        preset_box.pack_end(self.shortcut_combo, False, False, 0)
+        content.pack_start(preset_box, False, False, 0)
+
+        record_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        record_box.pack_start(Gtk.Label(label="Atual"), False, False, 0)
+        self.shortcut_btn = Gtk.Button(label=accel_label(CONFIG["shortcut"]))
+        self.shortcut_btn.set_tooltip_text("Clique e pressione a nova combinação (ex: Ctrl+Alt+V)")
+        self.shortcut_btn.connect("clicked", self._on_record_shortcut_clicked)
+        record_box.pack_end(self.shortcut_btn, False, False, 0)
+        content.pack_start(record_box, False, False, 0)
+
+        self.shortcut_hint = Gtk.Label(
+            label="Use pelo menos uma tecla modificadora (Ctrl, Alt, Super ou Shift) + uma tecla."
+        )
+        self.shortcut_hint.set_line_wrap(True)
+        self.shortcut_hint.set_xalign(0)
+        self.shortcut_hint.set_opacity(0.65)
+        content.pack_start(self.shortcut_hint, False, False, 0)
+
+        if not shutil.which("gsettings"):
+            gs_hint = Gtk.Label(
+                label="'gsettings' não encontrado — o atalho será salvo, mas você precisará "
+                      "registrá-lo manualmente nas Configurações de Teclado do sistema."
+            )
+            gs_hint.set_line_wrap(True)
+            gs_hint.set_xalign(0)
+            gs_hint.set_opacity(0.65)
+            content.pack_start(gs_hint, False, False, 0)
+
+        self.connect("key-press-event", self._on_dialog_key_press)
+
         self.show_all()
 
     def _section_label(self, text):
@@ -431,6 +551,50 @@ class SettingsDialog(Gtk.Dialog):
             ctx = b.get_style_context()
             ctx.add_provider(new_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+    def _on_shortcut_preset_changed(self, combo):
+        active_id = combo.get_active_id()
+        if active_id and active_id != "custom":
+            self._selected_shortcut = active_id
+            self.shortcut_btn.set_label(accel_label(active_id))
+
+    def _on_record_shortcut_clicked(self, btn):
+        self._capturing_shortcut = True
+        btn.set_label("Pressione a combinação… (Esc cancela)")
+
+    def _on_dialog_key_press(self, widget, event):
+        if not self._capturing_shortcut:
+            return False
+
+        if event.keyval == Gdk.KEY_Escape:
+            self._capturing_shortcut = False
+            self.shortcut_btn.set_label(accel_label(self._selected_shortcut))
+            return True
+
+        if event.is_modifier:
+            return True
+
+        mod_mask = Gtk.accelerator_get_default_mod_mask()
+        state = event.state & mod_mask
+
+        if state == 0:
+            self.shortcut_hint.set_markup(
+                "<span foreground='#E45858'>Combine com Ctrl, Alt, Super ou Shift.</span>"
+            )
+            return True
+
+        if not Gtk.accelerator_valid(event.keyval, state):
+            return True
+
+        accel = Gtk.accelerator_name(event.keyval, state)
+        self._selected_shortcut = accel
+        self.shortcut_btn.set_label(accel_label(accel))
+        self.shortcut_combo.set_active_id(accel if accel in self._preset_ids else "custom")
+        self.shortcut_hint.set_markup(
+            "Use pelo menos uma tecla modificadora (Ctrl, Alt, Super ou Shift) + uma tecla."
+        )
+        self._capturing_shortcut = False
+        return True
+
     def run_and_apply(self):
         response = self.run()
         if response == Gtk.ResponseType.OK:
@@ -439,7 +603,23 @@ class SettingsDialog(Gtk.Dialog):
             CONFIG["display_mode"] = self.display_combo.get_active_id() or "window"
             CONFIG["max_history"] = int(self.max_spin.get_value())
             CONFIG["mask_new_items"] = self.mask_check.get_active()
+            shortcut_changed = CONFIG["shortcut"] != self._selected_shortcut
+            CONFIG["shortcut"] = self._selected_shortcut
             save_config(CONFIG)
+            if shortcut_changed and not apply_shortcut(CONFIG["shortcut"]):
+                warn = Gtk.MessageDialog(
+                    transient_for=self.get_transient_for(),
+                    flags=0,
+                    message_type=Gtk.MessageType.WARNING,
+                    buttons=Gtk.ButtonsType.OK,
+                    text="Não foi possível registrar o atalho automaticamente.",
+                )
+                warn.format_secondary_text(
+                    "O atalho foi salvo, mas você precisará configurá-lo manualmente nas "
+                    "Configurações de Teclado do sistema (fora do GNOME)."
+                )
+                warn.run()
+                warn.destroy()
             self.on_apply(CONFIG)
         self.destroy()
 
@@ -535,11 +715,11 @@ class ClipboardWindow(Gtk.Window):
         title_lbl = Gtk.Label(label="ClipMaster")
         title_lbl.get_style_context().add_class("cm-title")
         title_lbl.set_xalign(0)
-        subtitle_lbl = Gtk.Label(label="Super + C")
-        subtitle_lbl.get_style_context().add_class("cm-subtitle")
-        subtitle_lbl.set_xalign(0)
+        self.subtitle_lbl = Gtk.Label(label=accel_label(CONFIG["shortcut"]))
+        self.subtitle_lbl.get_style_context().add_class("cm-subtitle")
+        self.subtitle_lbl.set_xalign(0)
         text_box.pack_start(title_lbl, False, False, 0)
-        text_box.pack_start(subtitle_lbl, False, False, 0)
+        text_box.pack_start(self.subtitle_lbl, False, False, 0)
         title_box.pack_start(text_box, False, False, 0)
         header.set_custom_title(title_box)
 
@@ -558,6 +738,7 @@ class ClipboardWindow(Gtk.Window):
     def _on_settings_applied(self, cfg):
         apply_style(cfg["theme"], cfg["accent"])
         set_indicator_enabled(self, cfg["display_mode"] == "tray")
+        self.subtitle_lbl.set_label(accel_label(cfg["shortcut"]))
         self.refresh_list()
 
     # --- Filtro ---
@@ -847,7 +1028,7 @@ def main():
 
     setup_clipboard_monitor(win)
 
-    print("✓ ClipMaster iniciado. Pressione Super+C para abrir o histórico.")
+    print(f"✓ ClipMaster iniciado. Pressione {accel_label(CONFIG['shortcut'])} para abrir o histórico.")
     Gtk.main()
 
 
