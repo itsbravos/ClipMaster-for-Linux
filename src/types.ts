@@ -11,7 +11,7 @@ export interface ClipboardItem {
   charCount: number;
 }
 
-export type ThemeMode = 'yaru-dark' | 'yaru-light' | 'yaru-aubergine';
+export type ThemeMode = 'light' | 'dark';
 
 export interface AppSettings {
   maxItems: number;

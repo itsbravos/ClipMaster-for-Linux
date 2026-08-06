@@ -18,14 +18,14 @@ export const ToastNotification: React.FC<ToastNotificationProps> = ({ message, o
   if (!message) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4 py-3 bg-[#1E1E28] border border-[#E95420] rounded-xl shadow-2xl text-white text-xs animate-in slide-in-from-bottom-5 duration-300">
-      <div className="p-1 rounded-lg bg-[#E95420]/20 text-[#E95420]">
+    <div className="fixed bottom-6 right-6 z-50 flex items-center space-x-3 px-4 py-3 card-neo text-ink dark:text-paper text-xs animate-in slide-in-from-bottom-5 duration-300">
+      <div className="p-1 rounded-lg bg-brand-blue/25 dark:bg-brand-blue-night/25 text-brand-blue-dark dark:text-brand-blue-night">
         <ClipboardCheck className="w-4 h-4" />
       </div>
-      <span className="font-medium">{message}</span>
+      <span className="font-bold">{message}</span>
       <button
         onClick={onClose}
-        className="text-gray-400 hover:text-white p-0.5 rounded transition-colors"
+        className="text-ink/50 dark:text-paper/50 hover:text-ink dark:hover:text-paper p-0.5 rounded transition-colors"
       >
         <X className="w-3.5 h-3.5" />
       </button>

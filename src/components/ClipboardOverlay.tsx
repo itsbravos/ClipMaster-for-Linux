@@ -143,45 +143,45 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
   const getItemIcon = (type: ClipboardType) => {
     switch (type) {
       case 'code':
-        return <Code className="w-4 h-4 text-emerald-400" />;
+        return <Code className="w-4 h-4 text-brand-green dark:text-brand-green-night" />;
       case 'url':
-        return <Link className="w-4 h-4 text-sky-400" />;
+        return <Link className="w-4 h-4 text-brand-blue-dark dark:text-brand-blue-night" />;
       case 'sensitive':
-        return <Lock className="w-4 h-4 text-amber-400" />;
+        return <Lock className="w-4 h-4 text-brand-red dark:text-brand-red-night" />;
       case 'command':
-        return <Terminal className="w-4 h-4 text-purple-400" />;
+        return <Terminal className="w-4 h-4 text-brand-purple dark:text-brand-purple-night" />;
       default:
-        return <FileText className="w-4 h-4 text-gray-400" />;
+        return <FileText className="w-4 h-4 text-ink/50 dark:text-paper/50" />;
     }
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md bg-[#23232C] border border-[#3A3A4A] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-gray-100 ring-1 ring-black/40"
+        className="w-full max-w-md card-neo overflow-hidden flex flex-col max-h-[85vh] text-ink dark:text-paper"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - Ubuntu Yaru Styled */}
-        <div className="bg-gradient-to-r from-[#2B2B36] to-[#1E1E26] px-4 py-3 border-b border-[#3A3A4A] flex items-center justify-between">
+        {/* Header */}
+        <div className="bg-brand-blue dark:bg-brand-blue-night px-4 py-3 border-b-[3px] border-ink dark:border-paper/80 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-[#E95420]" />
-            <div className="w-3 h-3 rounded-full bg-amber-500" />
-            <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="ml-2 font-semibold text-sm text-gray-200 tracking-wide">
+            <div className="w-3 h-3 rounded-full bg-brand-red border-2 border-ink" />
+            <div className="w-3 h-3 rounded-full bg-brand-yellow border-2 border-ink" />
+            <div className="w-3 h-3 rounded-full bg-brand-green border-2 border-ink" />
+            <span className="ml-2 font-display font-bold text-sm text-ink tracking-wide">
               Área de Transferência ({filteredItems.length})
             </span>
           </div>
 
           <div className="flex items-center space-x-1">
-            <span className="text-[10px] text-gray-400 font-mono bg-[#14141A] px-2 py-0.5 rounded border border-[#3A3A4A] hidden sm:inline">
+            <span className="text-[10px] text-ink/70 font-mono bg-cream-card px-2 py-0.5 rounded border-2 border-ink/70 hidden sm:inline">
               {settings.shortcut}
             </span>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1 rounded-lg text-ink hover:bg-ink/10 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -189,20 +189,20 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
         </div>
 
         {/* Search Bar */}
-        <div className="p-3 bg-[#1A1A22] border-b border-[#3A3A4A] flex items-center space-x-2">
-          <Search className="w-4 h-4 text-gray-400 ml-1 shrink-0" />
+        <div className="p-3 bg-cream-card dark:bg-night-card border-b-2 border-ink/20 dark:border-paper/20 flex items-center space-x-2">
+          <Search className="w-4 h-4 text-ink/50 dark:text-paper/50 ml-1 shrink-0" />
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Pesquisar cópias..."
-            className="w-full bg-transparent text-xs text-white placeholder-gray-500 focus:outline-none"
+            className="w-full bg-transparent text-xs text-ink dark:text-paper placeholder-ink/40 dark:placeholder-paper/40 focus:outline-none"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="text-xs text-gray-400 hover:text-white"
+              className="text-xs text-ink/50 dark:text-paper/50 hover:text-ink dark:hover:text-paper"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -210,23 +210,23 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
         </div>
 
         {/* Filter Pills */}
-        <div className="px-3 py-2 bg-[#1A1A22]/80 border-b border-[#2D2D3A] flex items-center space-x-1.5 overflow-x-auto text-[11px] scrollbar-none">
+        <div className="px-3 py-2 bg-cream-soft dark:bg-night-soft border-b-2 border-ink/20 dark:border-paper/20 flex items-center space-x-1.5 overflow-x-auto text-[11px] scrollbar-none">
           <button
             onClick={() => setSelectedFilter('all')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            className={`badge-neo px-2.5 py-1 transition-all ${
               selectedFilter === 'all'
-                ? 'bg-[#E95420] text-white shadow'
-                : 'bg-[#2B2B38] text-gray-400 hover:text-white'
+                ? 'bg-brand-blue dark:bg-brand-blue-night text-ink'
+                : 'bg-cream-card dark:bg-night-card text-ink/60 dark:text-paper/60 hover:text-ink dark:hover:text-paper'
             }`}
           >
             Todos
           </button>
           <button
             onClick={() => setSelectedFilter('pinned')}
-            className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg font-medium transition-all ${
+            className={`badge-neo flex items-center space-x-1 px-2.5 py-1 transition-all ${
               selectedFilter === 'pinned'
-                ? 'bg-[#E95420] text-white shadow'
-                : 'bg-[#2B2B38] text-gray-400 hover:text-white'
+                ? 'bg-brand-yellow text-ink'
+                : 'bg-cream-card dark:bg-night-card text-ink/60 dark:text-paper/60 hover:text-ink dark:hover:text-paper'
             }`}
           >
             <Pin className="w-3 h-3" />
@@ -234,30 +234,30 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
           </button>
           <button
             onClick={() => setSelectedFilter('code')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            className={`badge-neo px-2.5 py-1 transition-all ${
               selectedFilter === 'code'
-                ? 'bg-emerald-600 text-white shadow'
-                : 'bg-[#2B2B38] text-gray-400 hover:text-white'
+                ? 'bg-brand-green dark:bg-brand-green-night text-ink'
+                : 'bg-cream-card dark:bg-night-card text-ink/60 dark:text-paper/60 hover:text-ink dark:hover:text-paper'
             }`}
           >
             Código
           </button>
           <button
             onClick={() => setSelectedFilter('url')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            className={`badge-neo px-2.5 py-1 transition-all ${
               selectedFilter === 'url'
-                ? 'bg-sky-600 text-white shadow'
-                : 'bg-[#2B2B38] text-gray-400 hover:text-white'
+                ? 'bg-brand-blue dark:bg-brand-blue-night text-ink'
+                : 'bg-cream-card dark:bg-night-card text-ink/60 dark:text-paper/60 hover:text-ink dark:hover:text-paper'
             }`}
           >
             Links
           </button>
           <button
             onClick={() => setSelectedFilter('command')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
+            className={`badge-neo px-2.5 py-1 transition-all ${
               selectedFilter === 'command'
-                ? 'bg-purple-600 text-white shadow'
-                : 'bg-[#2B2B38] text-gray-400 hover:text-white'
+                ? 'bg-brand-purple dark:bg-brand-purple-night text-ink'
+                : 'bg-cream-card dark:bg-night-card text-ink/60 dark:text-paper/60 hover:text-ink dark:hover:text-paper'
             }`}
           >
             Comandos
@@ -267,13 +267,13 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
         {/* Items List */}
         <div
           ref={listContainerRef}
-          className="flex-1 overflow-y-auto p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-gray-700 max-h-[380px]"
+          className="flex-1 overflow-y-auto p-2 space-y-1.5 max-h-[380px] bg-cream dark:bg-night"
         >
           {filteredItems.length === 0 ? (
-            <div className="py-12 text-center text-gray-400 flex flex-col items-center">
-              <ShieldAlert className="w-8 h-8 text-gray-500 mb-2" />
-              <p className="text-sm font-medium">Nenhum item encontrado</p>
-              <p className="text-xs text-gray-500 mt-1">
+            <div className="py-12 text-center text-ink/50 dark:text-paper/50 flex flex-col items-center">
+              <ShieldAlert className="w-8 h-8 mb-2" />
+              <p className="text-sm font-bold">Nenhum item encontrado</p>
+              <p className="text-xs mt-1">
                 Copie algo no seu computador para ver aqui.
               </p>
             </div>
@@ -287,17 +287,17 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                   key={item.id}
                   onClick={() => handleSelect(item)}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`group relative p-3 rounded-xl border transition-all cursor-pointer ${
+                  className={`group relative p-3 rounded-xl border-[3px] transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-[#31313E] border-[#E95420] shadow-md'
-                      : 'bg-[#272732] border-[#363646] hover:bg-[#2D2D3A]'
+                      ? 'bg-cream-card dark:bg-night-card border-ink dark:border-paper/80 shadow-[3px_3px_0_0_rgba(27,26,23,1)] dark:shadow-[3px_3px_0_0_rgba(0,0,0,0.5)]'
+                      : 'bg-cream-card/60 dark:bg-night-card/60 border-ink/25 dark:border-paper/25 hover:border-ink/60 dark:hover:border-paper/60'
                   }`}
                 >
                   {/* Item Top Meta */}
-                  <div className="flex items-center justify-between mb-1.5 text-[10px] text-gray-400">
+                  <div className="flex items-center justify-between mb-1.5 text-[10px] text-ink/60 dark:text-paper/60">
                     <div className="flex items-center space-x-1.5">
                       {getItemIcon(item.type)}
-                      <span className="capitalize font-medium text-gray-300">
+                      <span className="capitalize font-bold text-ink/80 dark:text-paper/80">
                         {item.type === 'command'
                           ? 'Comando Terminal'
                           : item.type === 'sensitive'
@@ -307,14 +307,14 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                       {item.sourceApp && (
                         <>
                           <span>•</span>
-                          <span className="text-gray-400">{item.sourceApp}</span>
+                          <span>{item.sourceApp}</span>
                         </>
                       )}
                     </div>
 
                     <div className="flex items-center space-x-1">
                       {item.isPinned && (
-                        <span className="flex items-center text-[#E95420] font-medium bg-[#E95420]/10 px-1.5 py-0.5 rounded">
+                        <span className="flex items-center text-ink font-bold bg-brand-yellow px-1.5 py-0.5 rounded border border-ink/40">
                           <Pin className="w-2.5 h-2.5 mr-0.5 fill-current" />
                           Fixado
                         </span>
@@ -329,16 +329,16 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                   </div>
 
                   {/* Content Preview */}
-                  <div className="text-xs text-gray-100 font-mono break-all line-clamp-3 leading-relaxed">
+                  <div className="text-xs text-ink dark:text-paper font-mono break-all line-clamp-3 leading-relaxed">
                     {isMasked ? (
-                      <span className="tracking-widest text-amber-400">••••••••••••••••••••</span>
+                      <span className="tracking-widest text-brand-red dark:text-brand-red-night">••••••••••••••••••••</span>
                     ) : (
                       item.content
                     )}
                   </div>
 
                   {/* Actions overlay / bottom bar */}
-                  <div className="mt-2.5 pt-2 border-t border-[#3A3A48] flex items-center justify-between text-[11px] text-gray-400">
+                  <div className="mt-2.5 pt-2 border-t-2 border-ink/15 dark:border-paper/15 flex items-center justify-between text-[11px] text-ink/60 dark:text-paper/60">
                     <span className="text-[10px]">
                       {item.charCount} caracteres
                     </span>
@@ -347,7 +347,7 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                       {item.type === 'sensitive' && (
                         <button
                           onClick={(e) => toggleRevealSecret(item.id, e)}
-                          className="p-1 rounded hover:bg-white/10 text-gray-300 transition-colors"
+                          className="p-1 rounded hover:bg-ink/10 dark:hover:bg-paper/10 text-ink/70 dark:text-paper/70 transition-colors"
                           title={revealedIds[item.id] ? 'Ocultar' : 'Revelar'}
                         >
                           {revealedIds[item.id] ? (
@@ -365,8 +365,8 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                         }}
                         className={`p-1 rounded transition-colors ${
                           item.isPinned
-                            ? 'text-[#E95420] hover:bg-[#E95420]/20'
-                            : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                            ? 'text-ink bg-brand-yellow/60 hover:bg-brand-yellow'
+                            : 'text-ink/50 dark:text-paper/50 hover:bg-ink/10 dark:hover:bg-paper/10 hover:text-ink dark:hover:text-paper'
                         }`}
                         title={item.isPinned ? 'Desafixar' : 'Fixar no topo'}
                       >
@@ -378,7 +378,7 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                           e.stopPropagation();
                           onDeleteItem(item.id);
                         }}
-                        className="p-1 rounded text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                        className="p-1 rounded text-ink/50 dark:text-paper/50 hover:text-brand-red dark:hover:text-brand-red-night hover:bg-brand-red/10 transition-colors"
                         title="Remover item (Ctrl+Del)"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -389,7 +389,7 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
                           e.stopPropagation();
                           handleSelect(item);
                         }}
-                        className="flex items-center space-x-1 px-2 py-0.5 rounded bg-[#E95420] text-white hover:bg-[#d04618] font-medium transition-all"
+                        className="flex items-center space-x-1 px-2 py-0.5 rounded border-2 border-ink font-bold transition-all bg-brand-blue dark:bg-brand-blue-night text-ink"
                       >
                         {copiedId === item.id ? (
                           <>
@@ -412,18 +412,18 @@ export const ClipboardOverlay: React.FC<ClipboardOverlayProps> = ({
         </div>
 
         {/* Footer controls & shortcut tips */}
-        <div className="p-3 bg-[#1A1A22] border-t border-[#3A3A4A] flex items-center justify-between text-xs text-gray-400">
+        <div className="p-3 bg-cream-card dark:bg-night-card border-t-[3px] border-ink dark:border-paper/80 flex items-center justify-between text-xs text-ink/60 dark:text-paper/60">
           <div className="flex items-center space-x-2 text-[11px]">
-            <Keyboard className="w-3.5 h-3.5 text-gray-400" />
+            <Keyboard className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">
-              <kbd className="px-1 py-0.5 bg-black/40 rounded border border-gray-600">↑↓</kbd> navegar •{' '}
-              <kbd className="px-1 py-0.5 bg-black/40 rounded border border-gray-600">Enter</kbd> colar
+              <kbd className="px-1 py-0.5 bg-ink/10 dark:bg-paper/10 rounded border border-ink/30 dark:border-paper/30">↑↓</kbd> navegar •{' '}
+              <kbd className="px-1 py-0.5 bg-ink/10 dark:bg-paper/10 rounded border border-ink/30 dark:border-paper/30">Enter</kbd> colar
             </span>
           </div>
 
           <button
             onClick={onClearAll}
-            className="flex items-center space-x-1 text-gray-400 hover:text-rose-400 text-xs transition-colors"
+            className="flex items-center space-x-1 text-ink/60 dark:text-paper/60 hover:text-brand-red dark:hover:text-brand-red-night text-xs font-bold transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Limpar Histórico</span>

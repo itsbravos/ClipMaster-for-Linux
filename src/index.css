@@ -1,1 +1,100 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;1,600&display=swap');
+
+/* Ativa dark: por classe .dark na raiz, em vez de prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Baloo 2", ui-rounded, "Nunito", sans-serif;
+  --font-sans: "Nunito", ui-sans-serif, sans-serif;
+
+  /* Paleta clara — creme / azul / amarelo (referência Flipo) */
+  --color-cream: #fdf6e8;
+  --color-cream-soft: #f6ecd6;
+  --color-cream-card: #fffaf0;
+  --color-ink: #1b1a17;
+
+  --color-brand-blue: #3f9dfd;
+  --color-brand-blue-dark: #1c7ce0;
+  --color-brand-yellow: #fbcd4e;
+  --color-brand-yellow-dark: #f0b62a;
+  --color-brand-green: #5ec281;
+  --color-brand-red: #ef7267;
+  --color-brand-purple: #b9a3f5;
+
+  /* Paleta escura */
+  --color-night: #191b24;
+  --color-night-soft: #22242f;
+  --color-night-card: #23252f;
+  --color-paper: #f3efe3;
+
+  --color-brand-blue-night: #6db4ff;
+  --color-brand-yellow-night: #fbcd4e;
+  --color-brand-green-night: #7ad39c;
+  --color-brand-red-night: #f38f85;
+  --color-brand-purple-night: #c7b6f7;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+}
+
+@layer utilities {
+  /* Cartão com borda grossa + sombra "cartoon" offset */
+  .card-neo {
+    @apply bg-cream-card border-[3px] border-ink rounded-2xl shadow-[4px_4px_0_0_rgba(27,26,23,1)];
+  }
+  .dark .card-neo {
+    @apply bg-night-card border-paper/80 shadow-[4px_4px_0_0_rgba(0,0,0,0.55)];
+  }
+
+  /* Botão tátil com deslocamento no hover/active */
+  .btn-neo {
+    @apply font-display font-bold border-[3px] border-ink rounded-xl transition-all duration-150 shadow-[3px_3px_0_0_rgba(27,26,23,1)] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_rgba(27,26,23,1)] active:translate-x-0 active:translate-y-0 active:shadow-[1px_1px_0_0_rgba(27,26,23,1)] cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none disabled:hover:translate-x-0 disabled:hover:translate-y-0;
+  }
+  .dark .btn-neo {
+    @apply border-paper/80 shadow-[3px_3px_0_0_rgba(0,0,0,0.55)] hover:shadow-[5px_5px_0_0_rgba(0,0,0,0.55)] active:shadow-[1px_1px_0_0_rgba(0,0,0,0.55)];
+  }
+
+  /* Badge/pill com borda fina */
+  .badge-neo {
+    @apply font-bold border-2 border-ink rounded-full;
+  }
+  .dark .badge-neo {
+    @apply border-paper/70;
+  }
+
+  /* Input/select/textarea com borda grossa */
+  .input-neo {
+    @apply bg-cream-card border-[3px] border-ink rounded-xl text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-brand-blue;
+  }
+  .dark .input-neo {
+    @apply bg-night-soft border-paper/80 text-paper placeholder:text-paper/40 focus:ring-brand-blue-night;
+  }
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(27, 26, 23, 0.25);
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(243, 239, 227, 0.25);
+}
+
+/* Transição suave ao alternar tema */
+body, main, header, footer, div, section, button, input, textarea, select {
+  transition: background-color 200ms ease-in-out, border-color 200ms ease-in-out, color 150ms ease-in-out;
+}

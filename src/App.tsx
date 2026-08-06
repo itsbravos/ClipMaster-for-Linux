@@ -18,7 +18,7 @@ const defaultSettings: AppSettings = {
   soundEnabled: fontSoundDefault(),
   maskSensitive: true,
   autoClearOnLogout: false,
-  theme: 'yaru-dark',
+  theme: 'light',
   position: 'center',
   enableNotification: true,
   autoPasteOnSelect: true,
@@ -102,6 +102,11 @@ export default function App() {
       console.error('Failed to save settings:', e);
     }
   }, [settings]);
+
+  // Aplica a classe .dark na raiz do documento conforme o tema escolhido
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+  }, [settings.theme]);
 
   // Play subtle audio tone on copy
   const playCopySound = useCallback(() => {
@@ -275,7 +280,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#14141A] text-gray-100 flex flex-col font-sans selection:bg-[#E95420] selection:text-white">
+    <div className="min-h-screen bg-cream dark:bg-night text-ink dark:text-paper flex flex-col font-sans selection:bg-brand-yellow selection:text-ink">
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -283,6 +288,9 @@ export default function App() {
         itemCount={items.length}
         onOpenOverlay={() => setIsOverlayOpen(true)}
         settings={settings}
+        onToggleTheme={() =>
+          setSettings((prev) => ({ ...prev, theme: prev.theme === 'dark' ? 'light' : 'dark' }))
+        }
       />
 
       {/* Main Workspace Content */}
@@ -328,12 +336,12 @@ export default function App() {
       <ToastNotification message={toastMessage} onClose={() => setToastMessage(null)} />
 
       {/* Footer */}
-      <footer className="border-t border-[#23232E] py-4 px-6 text-center text-xs text-gray-300 bg-[#0F0F14]">
+      <footer className="border-t-[3px] border-ink dark:border-paper/80 py-4 px-6 text-center text-xs text-ink/70 dark:text-paper/70 bg-cream-soft dark:bg-night-soft font-medium">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            ClipMaster Ubuntu • Atalho <code className="text-[#E95420]">Super + C</code> para Histórico no Linux
+            ClipMaster Ubuntu • Atalho <code className="text-brand-blue-dark dark:text-brand-blue-night font-bold">{settings.shortcut}</code> para Histórico no Linux
           </span>
-          <span className="text-gray-300">
+          <span>
             Leve (~12MB RAM) • 100% Offline e Seguro
           </span>
         </div>
