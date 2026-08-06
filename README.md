@@ -39,7 +39,7 @@ Se você já tem o repositório clonado localmente, rode `bash scripts/install.s
 ### Desinstalar
 
 ```bash
-pkill -x clipmaster
+pkill -f "$HOME/.local/bin/clipmaster"
 rm -f ~/.local/bin/clipmaster
 rm -f ~/.config/autostart/clipmaster.desktop
 rm -f ~/.local/share/applications/clipmaster.desktop

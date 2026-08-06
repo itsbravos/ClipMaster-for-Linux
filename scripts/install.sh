@@ -94,7 +94,7 @@ X-GNOME-Autostart-enabled=true
 EOF
 
 # Para o daemon caso já esteja rodando e inicia a nova versão
-pkill -x clipmaster 2>/dev/null || true
+pkill -f "$HOME/.local/bin/clipmaster" 2>/dev/null || true
 sleep 0.5
 nohup "$HOME/.local/bin/clipmaster" > /tmp/clipmaster.log 2>&1 &
 
